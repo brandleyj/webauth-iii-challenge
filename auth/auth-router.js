@@ -1,23 +1,33 @@
 const router = require("express").Router();
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+// const jwt = require("jsonwebtoken");
 
 const Users = require("../users/users-model");
+const validateUser = require("../users/user-helpers");
+const generateToken = require("./token");
 
 router.post("/register", (req, res) => {
 	let user = req.body;
-	const hash = bcrypt.hashSync(user.password, 10);
-	user.password = hash;
+	const validUser = validateUser(user);
+	if (validUser.isSuccessful) {
+		const hash = bcrypt.hashSync(user.password, 14);
+		user.password = hash;
 
-	Users.add(user)
-		.then(saved => {
-			const token = generateToken(saved);
-			res.status(201).json({ user: saved, token });
-		})
-		.catch(error => {
-			console.log(error);
-			res.status(500).json(error);
+		Users.add(user)
+			.then(user => {
+				Users.findById(user[0]).then(user => {
+					res.status(201).json(user);
+				});
+			})
+			.catch(error => {
+				res.status(500).json(error);
+			});
+	} else {
+		req.status(400).json({
+			message: "Invalid information about the user",
+			errors: validateResult.errors
 		});
+	}
 });
 
 router.post("/login", (req, res) => {
@@ -41,17 +51,17 @@ router.post("/login", (req, res) => {
 		});
 });
 
-function generateToken(user) {
-	const payload = {
-		sub: user.id,
-		username: user.username,
-		department: user.department
-	};
-	const options = {
-		expiresIn: "1d"
-	};
+// function generateToken(user) {
+// 	const payload = {
+// 		sub: user.id,
+// 		username: user.username,
+// 		department: user.department
+// 	};
+// 	const options = {
+// 		expiresIn: "1d"
+// 	};
 
-	return jwt.sign(payload, process.env.JWT_SECRET, options);
-}
+// 	return jwt.sign(payload, process.env.JWT_SECRET, options);
+// }
 
 module.exports = router;
